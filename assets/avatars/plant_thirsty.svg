@@ -1,0 +1,12 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <path d="M90 60 Q60 60 50 90 Q70 100 90 70" fill="#FCD34D" stroke="#92400E" stroke-width="3"/>
+  <path d="M110 60 Q140 60 150 90 Q130 100 110 70" fill="#FCD34D" stroke="#92400E" stroke-width="3"/>
+
+  <path d="M100 190 Q45 190 55 110 Q65 50 100 50 Q135 50 145 110 Q155 190 100 190 Z" fill="#FBBF24" stroke="#78350F" stroke-width="3"/>
+
+  <path d="M55 130 Q70 130 80 140" fill="none" stroke="#78350F" stroke-width="3" stroke-linecap="round"/>
+  <path d="M145 130 Q130 130 120 140" fill="none" stroke="#78350F" stroke-width="3" stroke-linecap="round"/>
+
+  <path d="M65 100 Q75 90 85 100" fill="none" stroke="#78350F" stroke-width="3" stroke-linecap="round"/> <path d="M115 100 Q125 90 135 100" fill="none" stroke="#78350F" stroke-width="3" stroke-linecap="round"/>
+  <path d="M90 135 Q100 125 110 135" fill="none" stroke="#78350F" stroke-width="3" stroke-linecap="round"/> <path d="M100 180 L100 160 M60 140 L70 150" stroke="#92400E" stroke-width="2"/>
+</svg>
