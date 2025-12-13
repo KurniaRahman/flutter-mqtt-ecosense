@@ -46,7 +46,7 @@ class DashboardScreen extends ConsumerWidget {
     } else if (sensors.suhuUdara > 35) {
       diagnoses.add({'title': 'Kepanasan', 'action': 'Nyalakan kipas angin.'});
     }
-    if (sensors.kelembapanTanah >= 0 && sensors.kelembapanTanah < 60) {
+    if (sensors.kelembapanTanah >= 30 && sensors.kelembapanTanah < 60) {
       diagnoses.add({'title': 'Tanah Kering', 'action': 'Siram tanaman secukupnya.'});
     } else if (sensors.kelembapanTanah > 80) {
       diagnoses.add({'title': 'Tanah Basah', 'action': 'Stop penyiraman dulu.'});
