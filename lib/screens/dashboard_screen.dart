@@ -3,12 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/sensor_provider.dart';
-import '../providers/history_provider.dart'; // Pastikan import ini ada
+import '../providers/history_provider.dart';
 import '../widgets/plant_avatar.dart';
 import 'settings_screen.dart';
 import 'history_screen.dart';
-import '../services/sound_service.dart'; 
-
+import '../services/sound_service.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -18,7 +17,8 @@ class DashboardScreen extends ConsumerWidget {
     // 1. Ambil Data dari Provider
     final sensors = ref.watch(sensorProvider);
     final status = ref.watch(avatarStatusProvider);
-    final isConnected = ref.watch(mqttConnectedProvider); 
+    final isConnected = ref.watch(mqttConnectedProvider);
+
     ref.listen(avatarStatusProvider, (previous, next) {
       if (previous != next) {
         SoundService.playForStatus(next);
@@ -34,29 +34,75 @@ class DashboardScreen extends ConsumerWidget {
     String message = "Halo! Aku sehat hari ini! 🌱";
     Color bgColor = const Color(0xFFF0FDF4);
 
-    // --- LOGIC CHECK (Sama seperti sebelumnya) ---
-    if (sensors.tegangan > 0 && sensors.tegangan < 4.0) {
-      diagnoses.add({'title': 'Baterai Lemah', 'action': 'Segera charge baterai sistem!'});
+    // ============================================================
+    // LOGIC CHECK (DIAGNOSA KESEHATAN)
+    // ============================================================
+
+    // 1. Cek Baterai
+    if (sensors.tegangan > 0 && sensors.tegangan < 3.5) {
+      diagnoses.add({
+        'title': 'Baterai Lemah',
+        'action': 'Segera charge baterai sistem!',
+      });
     }
+
+    // 2. Cek CO2
     if (sensors.co2 > 1200) {
-      diagnoses.add({'title': 'Udara Kotor', 'action': 'Buka ventilasi udara segera.'});
+      diagnoses.add({
+        'title': 'Udara Kotor',
+        'action': 'Buka ventilasi udara segera.',
+      });
     }
+
+    // 3. Cek Suhu Udara
     if (sensors.suhuUdara > 0 && sensors.suhuUdara < 20) {
       diagnoses.add({'title': 'Kedinginan', 'action': 'Naikkan suhu ruangan.'});
     } else if (sensors.suhuUdara > 35) {
       diagnoses.add({'title': 'Kepanasan', 'action': 'Nyalakan kipas angin.'});
     }
-    if (sensors.kelembapanTanah >= 0 && sensors.kelembapanTanah < 60) {
-      diagnoses.add({'title': 'Tanah Kering', 'action': 'Siram tanaman secukupnya.'});
+
+    // 4. Cek Kelembapan Tanah
+    if (sensors.kelembapanTanah >= 0 && sensors.kelembapanTanah < 30) {
+      diagnoses.add({
+        'title': 'Tanah Kering',
+        'action': 'Siram tanaman secukupnya.',
+      });
     } else if (sensors.kelembapanTanah > 80) {
-      diagnoses.add({'title': 'Tanah Basah', 'action': 'Stop penyiraman dulu.'});
-    }
-    if (sensors.cahaya >= 0 && sensors.cahaya < 700) {
-      diagnoses.add({'title': 'Kurang Cahaya', 'action': 'Pindahkan ke tempat terang.'});
-    } else if (sensors.cahaya > 1000) { // Update batas silau
-      diagnoses.add({'title': 'Terlalu Silau', 'action': 'Beri naungan sedikit.'});
+      diagnoses.add({
+        'title': 'Tanah Basah',
+        'action': 'Stop penyiraman dulu.',
+      });
     }
 
+    // 5. Cek Cahaya
+    if (sensors.cahaya >= 0 && sensors.cahaya < 400) {
+      diagnoses.add({
+        'title': 'Kurang Cahaya',
+        'action': 'Pindahkan ke tempat terang.',
+      });
+    } else if (sensors.cahaya > 1000) {
+      diagnoses.add({
+        'title': 'Terlalu Silau',
+        'action': 'Beri naungan sedikit.',
+      });
+    }
+
+    // --- BARU: Cek Suhu Tanah (15°C - 30°C) ---
+    if (sensors.suhuTanah >= 0 && sensors.suhuTanah < 15) {
+      diagnoses.add({
+        'title': 'Tanah Dingin',
+        'action': 'Media tanam terlalu dingin, hangatkan area.',
+      });
+    } else if (sensors.suhuTanah > 30) {
+      diagnoses.add({
+        'title': 'Tanah Panas',
+        'action': 'Media tanam kepanasan, siram atau beri atap.',
+      });
+    }
+
+    // ============================================================
+
+    // Logic Status Avatar & Warna Background
     if (status == 'THIRSTY') {
       bgColor = const Color(0xFFFEF3C7);
       message = "Aku haus... Siram aku dong! 🥤";
@@ -83,33 +129,31 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        // --- BAGIAN INDIKATOR KONEKSI (TITIK HIJAU/MERAH) ---
         title: Row(
-          mainAxisSize: MainAxisSize.min, // Agar posisi di tengah
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Titik Indikator
             Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: isConnected ? Colors.greenAccent : Colors.redAccent,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: isConnected ? Colors.green.withOpacity(0.6) : Colors.red.withOpacity(0.6),
-                    blurRadius: 8,
-                    spreadRadius: 2,
-                  )
-                ],
-              ),
-            ).animate(target: isConnected ? 1 : 0)
-             .scale(duration: 500.ms, curve: Curves.easeInOut) // Animasi muncul
-             .then()
-             .shimmer(duration: 2.seconds, delay: 3.seconds), // Animasi berkilau
-
-            const SizedBox(width: 8), // Jarak spasi
-
-            // Teks Judul
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: isConnected ? Colors.greenAccent : Colors.redAccent,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: isConnected
+                            ? Colors.green.withOpacity(0.6)
+                            : Colors.red.withOpacity(0.6),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                )
+                .animate(target: isConnected ? 1 : 0)
+                .scale(duration: 500.ms, curve: Curves.easeInOut)
+                .then()
+                .shimmer(duration: 2.seconds, delay: 3.seconds),
+            const SizedBox(width: 8),
             Text(
               "EcoSense",
               style: TextStyle(
@@ -127,15 +171,21 @@ class DashboardScreen extends ConsumerWidget {
           IconButton(
             icon: Icon(LucideIcons.history, color: textColor),
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryScreen()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HistoryScreen()),
+              );
             },
           ),
           IconButton(
             icon: Icon(LucideIcons.settings, color: textColor),
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
             },
-          )
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -145,33 +195,46 @@ class DashboardScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              
               // 1. AREA AVATAR
-Center(
+              Center(
                 child: Column(
                   children: [
-                    // Bubble Chat (Biarkan sama)
                     Container(
-                      // ... (Kode Container Bubble Chat sama) ...
-                      child: Text(
-                        message,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey[800]),
-                      ),
-                    ).animate(key: ValueKey(message)).scale(duration: 400.ms, curve: Curves.easeOutBack),
-                    
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.9),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              topRight: Radius.circular(20),
+                              bottomRight: Radius.circular(20),
+                              bottomLeft: Radius.circular(0),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            message,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                        )
+                        .animate(key: ValueKey(message))
+                        .scale(duration: 400.ms, curve: Curves.easeOutBack),
                     const SizedBox(height: 10),
-                    
-                    // --- 2. AVATAR YANG BISA DI-KLIK (INTERAKTIF) ---
                     GestureDetector(
-                      onTap: () {
-                        // Fitur: Tap avatar untuk dengar suara lagi
-                        SoundService.playForStatus(status);
-                        
-                        // Opsional: Tambahkan efek visual 'boing' saat diklik
-                        // (Perlu state management lokal kalau mau animasi klik, tapi suara saja cukup)
-                        print("Avatar diklik: Memainkan suara $status");
-                      },
+                      onTap: () => SoundService.playForStatus(status),
                       child: SizedBox(
                         height: 220,
                         child: PlantAvatar(status: status),
@@ -197,32 +260,61 @@ Center(
                     children: [
                       Row(
                         children: [
-                          Icon(LucideIcons.alertTriangle, color: Colors.red[600], size: 20),
+                          Icon(
+                            LucideIcons.alertTriangle,
+                            color: Colors.red[600],
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
-                          Text("Perlu Tindakan!", style: TextStyle(color: Colors.red[800], fontWeight: FontWeight.bold)),
+                          Text(
+                            "Perlu Tindakan!",
+                            style: TextStyle(
+                              color: Colors.red[800],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 10),
-                      ...diagnoses.map((item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text("• ", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                            Expanded(
-                              child: RichText(
-                                text: TextSpan(
-                                  style: TextStyle(color: Colors.red[900], fontSize: 13, fontFamily: 'Nunito'),
-                                  children: [
-                                    TextSpan(text: "${item['title']}: ", style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    TextSpan(text: item['action']),
-                                  ],
-                                ),
+                      ...diagnoses
+                          .map(
+                            (item) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "• ",
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: RichText(
+                                      text: TextSpan(
+                                        style: TextStyle(
+                                          color: Colors.red[900],
+                                          fontSize: 13,
+                                          fontFamily: 'Nunito',
+                                        ),
+                                        children: [
+                                          TextSpan(
+                                            text: "${item['title']}: ",
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          TextSpan(text: item['action']),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      )).toList(),
+                          )
+                          .toList(),
                     ],
                   ),
                 ).animate().fadeIn().slideY(begin: 0.2, end: 0),
@@ -230,10 +322,13 @@ Center(
               // 3. VITALITAS TANAMAN
               Text(
                 "Vitalitas Tanaman".toUpperCase(),
-                style: TextStyle(color: textColor.withOpacity(0.7), fontWeight: FontWeight.bold, fontSize: 12),
+                style: TextStyle(
+                  color: textColor.withOpacity(0.7),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
               ),
               const SizedBox(height: 10),
-              
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -269,10 +364,15 @@ Center(
               // 4. MONITORING LENGKAP
               Text(
                 "Lingkungan Sekitar".toUpperCase(),
-                style: TextStyle(color: textColor.withOpacity(0.7), fontWeight: FontWeight.bold, fontSize: 12),
+                style: TextStyle(
+                  color: textColor.withOpacity(0.7),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
               ),
               const SizedBox(height: 10),
-              
+
+              // --- GRID 2x2 (4 SENSOR UTAMA) ---
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -281,13 +381,52 @@ Center(
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
                 children: [
-                  _SensorGridCard("Suhu Udara", "${sensors.suhuUdara.toStringAsFixed(1)}°C", LucideIcons.thermometer, Colors.red, isDarkTheme),
-                  _SensorGridCard("Kelembapan", "${sensors.kelembapanUdara.toStringAsFixed(0)}%", LucideIcons.wind, Colors.lightBlue, isDarkTheme),
-                  _SensorGridCard("Kualitas CO2", "${sensors.co2} PPM", LucideIcons.cloudFog, Colors.purple, isDarkTheme),
-                  _SensorGridCard("Voltase", "${sensors.tegangan.toStringAsFixed(1)} V", LucideIcons.zap, Colors.orange, isDarkTheme),
+                  _SensorGridCard(
+                    "Suhu Udara",
+                    "${sensors.suhuUdara.toStringAsFixed(1)}°C",
+                    LucideIcons.thermometer,
+                    Colors.red,
+                    isDarkTheme,
+                  ),
+                  _SensorGridCard(
+                    "Kelembapan",
+                    "${sensors.kelembapanUdara.toStringAsFixed(0)}%",
+                    LucideIcons.wind,
+                    Colors.lightBlue,
+                    isDarkTheme,
+                  ),
+                  _SensorGridCard(
+                    "Kualitas CO2",
+                    "${sensors.co2} PPM",
+                    LucideIcons.cloudFog,
+                    Colors.purple,
+                    isDarkTheme,
+                  ),
+                  // KARTU SUHU TANAH
+                  _SensorGridCard(
+                    "Suhu Tanah",
+                    "${sensors.suhuTanah.toStringAsFixed(1)}°C",
+                    LucideIcons.thermometerSun,
+                    Colors.brown,
+                    isDarkTheme,
+                  ),
                 ],
               ),
-              
+
+              const SizedBox(height: 12),
+
+              // --- KARTU BATERAI (MEMANJANG FULL WIDTH) ---
+              SizedBox(
+                height: 100,
+                child: _SensorGridCard(
+                  "Voltase Baterai",
+                  "${sensors.tegangan.toStringAsFixed(1)} V",
+                  LucideIcons.batteryCharging,
+                  Colors.orange,
+                  isDarkTheme,
+                ),
+              ),
+
               const SizedBox(height: 20),
             ],
           ),
@@ -296,11 +435,19 @@ Center(
     );
   }
 
-  Widget _SensorGridCard(String label, String value, IconData icon, Color color, bool isDark) {
+  Widget _SensorGridCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+    bool isDark,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.8),
+        color: isDark
+            ? Colors.white.withOpacity(0.1)
+            : Colors.white.withOpacity(0.8),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withOpacity(0.2)),
       ),
@@ -312,16 +459,37 @@ Center(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Icon(icon, color: color, size: 20),
-              Container(width: 6, height: 6, decoration: BoxDecoration(color: color.withOpacity(0.5), shape: BoxShape.circle)),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+              ),
             ],
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: isDark ? Colors.white : Colors.grey[800])),
-              Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.grey[500])),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : Colors.grey[800],
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.grey[500],
+                ),
+              ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -336,7 +504,14 @@ class _AnimatedBar extends StatelessWidget {
   final Color color;
   final IconData icon;
 
-  const _AnimatedBar({required this.label, required this.value, required this.max, required this.unit, required this.color, required this.icon});
+  const _AnimatedBar({
+    required this.label,
+    required this.value,
+    required this.max,
+    required this.unit,
+    required this.color,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -350,26 +525,61 @@ class _AnimatedBar extends StatelessWidget {
               children: [
                 Icon(icon, size: 16, color: color),
                 const SizedBox(width: 6),
-                Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black54)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.black54,
+                  ),
+                ),
               ],
             ),
-            Text("${value.toInt()}$unit", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: color)),
+            Text(
+              "${value.toInt()}$unit",
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 13,
+                color: color,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
         Stack(
           children: [
-            Container(height: 12, width: double.infinity, decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10))),
+            Container(
+              height: 12,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             LayoutBuilder(
               builder: (context, constraints) {
                 return TweenAnimationBuilder<double>(
-                  tween: Tween<double>(begin: 0, end: percent * constraints.maxWidth),
+                  tween: Tween<double>(
+                    begin: 0,
+                    end: percent * constraints.maxWidth,
+                  ),
                   duration: const Duration(milliseconds: 1000),
                   curve: Curves.easeOutExpo,
                   builder: (context, width, child) {
                     return Container(
-                      height: 12, width: width,
-                      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10), boxShadow: [BoxShadow(color: color.withOpacity(0.4), blurRadius: 6, offset: const Offset(0, 2))]),
+                      height: 12,
+                      width: width,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: color.withOpacity(0.4),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
                     );
                   },
                 );

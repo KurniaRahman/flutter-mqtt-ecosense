@@ -20,15 +20,17 @@ final mqttConnectedProvider = StateProvider<bool>((ref) => false);
 // 3. Provider Status Emosi Avatar (Logika Baru)
 final avatarStatusProvider = Provider<String>((ref) {
   final data = ref.watch(sensorProvider);
-  
+
   // Logic Sesuai Request:
-  if (data.tegangan > 0 && data.tegangan < 4.0) return 'DEAD'; // Batas Tegangan < 4.0
+  if (data.tegangan > 0 && data.tegangan < 4.0)
+    return 'DEAD'; // Batas Tegangan < 4.0
   if (data.co2 > 1200) return 'SICK';
-  if (data.suhuUdara > 0 && data.suhuUdara < 20) return 'COLD';
+  if (data.suhuUdara < 20) return 'COLD';
   if (data.suhuUdara > 35) return 'HOT'; // Batas Panas > 35
-  if (data.kelembapanTanah >= 0 && data.kelembapanTanah < 60) return 'THIRSTY';
-  if (data.cahaya >= 0 && data.cahaya < 700) return 'DARK'; // Batas Cahaya < 700
-  
+  if (data.kelembapanTanah >= 0 && data.kelembapanTanah < 30) return 'THIRSTY';
+  if (data.cahaya >= 0 && data.cahaya < 400)
+    return 'DARK'; // Batas Cahaya < 400
+
   return 'HAPPY';
 });
 
@@ -69,7 +71,7 @@ class SensorNotifier extends StateNotifier<SensorData> {
     // --- CALLBACK STATUS KONEKSI (Update Provider Terpisah) ---
     client!.onConnected = () {
       print('✅ MQTT Connected');
-      ref.read(mqttConnectedProvider.notifier).state = true; 
+      ref.read(mqttConnectedProvider.notifier).state = true;
     };
 
     client!.onDisconnected = () {
@@ -79,7 +81,9 @@ class SensorNotifier extends StateNotifier<SensorData> {
 
     // Setup Login Message
     final connMess = MqttConnectMessage()
-        .withClientIdentifier('FlutterApp-${DateTime.now().millisecondsSinceEpoch}')
+        .withClientIdentifier(
+          'FlutterApp-${DateTime.now().millisecondsSinceEpoch}',
+        )
         .authenticateAs(user, pass)
         .startClean();
     client!.connectionMessage = connMess;
@@ -107,7 +111,9 @@ class SensorNotifier extends StateNotifier<SensorData> {
       // Dengarkan Data
       client!.updates!.listen((List<MqttReceivedMessage<MqttMessage?>> c) {
         final MqttPublishMessage recMess = c[0].payload as MqttPublishMessage;
-        final String pt = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+        final String pt = MqttPublishPayload.bytesToStringAsString(
+          recMess.payload.message,
+        );
         final String topic = c[0].topic;
         _updateData(topic, pt);
       });
@@ -123,10 +129,14 @@ class SensorNotifier extends StateNotifier<SensorData> {
 
     if (topic.contains('suhu_udara')) state = state.copyWith(suhuUdara: val);
     if (topic.contains('suhu_tanah')) state = state.copyWith(suhuTanah: val);
-    if (topic.contains('kelembapan_tanah')) state = state.copyWith(kelembapanTanah: val.toInt());
-    if (topic.contains('kelembapan_udara')) state = state.copyWith(kelembapanUdara: val);
-    if (topic.contains('intensitas_cahaya')) state = state.copyWith(cahaya: val);
-    if (topic.contains('intensitas_co2')) state = state.copyWith(co2: val.toInt());
+    if (topic.contains('kelembapan_tanah'))
+      state = state.copyWith(kelembapanTanah: val.toInt());
+    if (topic.contains('kelembapan_udara'))
+      state = state.copyWith(kelembapanUdara: val);
+    if (topic.contains('intensitas_cahaya'))
+      state = state.copyWith(cahaya: val);
+    if (topic.contains('intensitas_co2'))
+      state = state.copyWith(co2: val.toInt());
     if (topic.contains('tegangan')) state = state.copyWith(tegangan: val);
   }
 }
